@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>财税法 · 互动答题</title>
+<style>
+:root{
+  --bg:#f6f8fb; --panel:#fff; --text:#1f2937; --muted:#6b7280;
+  --border:#e5e7eb; --accent:#1d4ed8; --accent-soft:#e8efff;
+  --ok:#16a34a; --ok-soft:#e7f6ec; --bad:#dc2626; --bad-soft:#fdeaea;
+  --warn:#d97706; --shadow:0 1px 3px rgba(0,0,0,.07);
+}
+html[data-theme="dark"]{
+  --bg:#0f172a; --panel:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
+  --border:#334155; --accent:#60a5fa; --accent-soft:#1e3a5f;
+  --ok:#4ade80; --ok-soft:#123322; --bad:#f87171; --bad-soft:#3a1a1a;
+  --warn:#fbbf24; --shadow:0 1px 3px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.7;font-size:15px}
+#layout{display:flex;min-height:100vh}
+/* 侧栏 */
+#sidebar{width:260px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);
+  height:100vh;position:sticky;top:0;overflow-y:auto;padding:14px 10px 40px}
+#sidebar h1{font-size:15px;margin:4px 8px 10px;color:var(--accent)}
+#search{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg);color:var(--text);font-size:13px;margin-bottom:8px}
+#toc{list-style:none;margin:0;padding:0;font-size:13px}
+#toc li{margin:1px 0}
+#toc a{display:block;padding:5px 8px;border-radius:6px;color:var(--text);
+  text-decoration:none;cursor:pointer}
+#toc a:hover{background:var(--accent-soft)}
+#toc a.active{background:var(--accent-soft);color:var(--accent);font-weight:700}
+#toc .cnt{float:right;color:var(--muted);font-size:11px}
+/* 主体 */
+#main{flex:1;max-width:900px;margin:0 auto;padding:20px 30px 100px;min-width:0}
+#topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+#topbar .t{font-size:14px;color:var(--muted)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{border:1px solid var(--border);background:var(--panel);color:var(--text);
+  border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary:hover{opacity:.9;color:#fff}
+/* 统计条 */
+#stats{display:flex;gap:14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13.5px;box-shadow:var(--shadow)}
+#stats b{font-size:17px}
+.stat-ok b{color:var(--ok)} .stat-bad b{color:var(--bad)} .stat-all b{color:var(--accent)}
+#progressWrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:10px;flex-basis:100%}
+#progressBar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#7c9dfb);transition:width .4s}
+/* 题目卡片 */
+.q{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow);scroll-margin-top:16px}
+.q .meta{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.q .meta .tag{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:1px 10px;font-size:11.5px}
+.q .stem{font-size:15.5px;font-weight:600;margin-bottom:12px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{border:1px solid var(--border);border-radius:10px;padding:9px 14px;cursor:pointer;
+  transition:.15s;font-size:14.5px;display:flex;gap:8px;align-items:flex-start}
+.opt:hover{border-color:var(--accent);background:var(--accent-soft)}
+.opt .k{font-weight:700;color:var(--accent);min-width:18px}
+.opt.correct{border-color:var(--ok);background:var(--ok-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.disabled{cursor:default;pointer-events:none}
+.explain{margin-top:12px;padding:10px 14px;border-radius:10px;font-size:13.5px;display:none;
+  border-left:4px solid var(--accent);background:var(--accent-soft)}
+.explain.show{display:block}
+.explain .res{font-weight:700;margin-bottom:4px}
+.explain .res.ok{color:var(--ok)} .explain .res.bad{color:var(--bad)}
+/* 错题本 */
+#wrongPanel{display:none;background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
+#wrongPanel h3{margin:0 0 10px;font-size:15px;color:var(--warn)}
+#wrongPanel .empty{color:var(--muted);font-size:13.5px}
+#wrongPanel ul{margin:0;padding-left:18px;font-size:13.5px}
+#wrongPanel li{margin:4px 0}
+#wrongPanel .jump{color:var(--accent);cursor:pointer;text-decoration:underline}
+/* 结果弹层 */
+#resultMask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:50;align-items:center;justify-content:center;padding:20px}
+#resultMask.show{display:flex}
+#resultBox{background:var(--panel);border-radius:16px;padding:26px 30px;max-width:420px;width:100%;
+  text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+#resultBox h2{margin:0 0 8px;font-size:20px}
+#resultBox .score{font-size:40px;font-weight:800;color:var(--accent);margin:10px 0}
+#resultBox p{color:var(--muted);font-size:14px;margin:6px 0 18px}
+/* 回到顶部 */
+#top{position:fixed;right:20px;bottom:20px;width:42px;height:42px;border-radius:50%;
+  background:var(--accent);color:#fff;border:none;font-size:18px;cursor:pointer;
+  display:none;box-shadow:var(--shadow)}
+@media(max-width:860px){
+  #layout{flex-direction:column}
+  #sidebar{width:100%;min-width:0;height:auto;position:static}
+  #main{padding:14px}
+}
+</style>
+</head>
+<body>
+<div id="layout">
+  <aside id="sidebar">
+    <h1>财税法 · 互动答题</h1>
+    <input id="search" placeholder="搜索题目 / 知识点…">
+    <ul id="toc"></ul>
+  </aside>
+  <main id="main">
+    <div id="topbar">
+      <span class="t">《财税法学》（第三版）· 单选 + 判断</span>
+      <div class="btns">
+        <button id="wrongBtn">错题本</button>
+        <button id="submitBtn" class="primary">查看成绩</button>
+        <button id="resetBtn">重做</button>
+        <button id="themeBtn">🌙 深色</button>
+      </div>
+    </div>
+    <div id="stats">
+      <span class="stat-all">已答 <b id="doneN">0</b></span>
+      <span class="stat-ok">正确 <b id="okN">0</b></span>
+      <span class="stat-bad">错误 <b id="badN">0</b></span>
+      <span>正确率 <b id="rate">—</b></span>
+      <div id="progressWrap"><div id="progressBar"></div></div>
+    </div>
+    <div id="wrongPanel">
+      <h3>⚠ 错题本</h3>
+      <div id="wrongList"></div>
+    </div>
+    <div id="quiz"></div>
+  </main>
+</div>
+<button id="top">↑</button>
+<div id="resultMask"><div id="resultBox">
+  <h2>答题完成</h2>
+  <div class="score" id="finalScore">0</div>
+  <p id="finalDesc"></p>
+  <button class="primary" onclick="document.getElementById('resultMask').classList.remove('show')">关闭</button>
+</div></div>
+
+<script>
+/* ============ 题库 ============ */
+/* type: single 单选 / judge 判断；ans: 正确选项索引；exp: 解析 */
+const QUESTIONS = [
+/* ---------- 导论 ---------- */
+{c:"导论",type:"single",stem:"关于财政与税收的关系，下列说法正确的是？",
+ opts:["财政与税收是同一层次的概念","财政包容税收，但不限于税收，二者是属种关系","税收包容财政，税收是上位概念","财政与税收互不隶属，完全并列"],
+ ans:1,exp:"课件指出：财政包容税收，但不限于税收，税收只是财政收入的一种，二者之间是属种关系。"},
+{c:"导论",type:"judge",stem:"现代财政法是以“税收法定主义”为中心而发展起来的。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：现代意义上的财政法也是以“税收法定主义”为中心而发展起来的。"},
+
+/* ---------- 第一章 财政法总论 ---------- */
+{c:"第一章 财政法总论",type:"single",stem:"现代财政法的实质定义是？",
+ opts:["调整财政关系之法","建立在民主宪制基础上、以增进全民福利和社会发展为目标、调整财政关系的法律规范的总称","政府内部资金分配的管理法","国家筹集财政收入的工具法"],
+ ans:1,exp:"课件指出：就实质层面看，现代财政法是建立在民主宪制基础上、以增进全民福利和社会发展为目标、调整财政关系的法律规范的总称。"},
+{c:"第一章 财政法总论",type:"single",stem:"判断财政关系内涵和外延的基本准则是？",
+ opts:["强制性","公共性","有偿性","法定性"],ans:1,
+ exp:"课件原文：公共性是判断财政关系内涵和外延的一条基本准则。"},
+{c:"第一章 财政法总论",type:"single",stem:"下列不属于财政法基本原则的是？",
+ opts:["财政民主主义","财政法定主义","财政健全主义","税收中性主义"],ans:3,
+ exp:"课件将财政法的基本原则归纳为财政民主主义、财政法定主义、财政健全主义和财政平等主义。税收中性是税收效率原则中的概念，不是财政法基本原则。"},
+{c:"第一章 财政法总论",type:"single",stem:"财政健全主义的核心问题是？",
+ opts:["能否将公债作为财政支出的资金来源","能否实现年度财政平衡","能否降低税负","能否扩大财政支出规模"],
+ ans:0,exp:"课件原文：财政健全主义所关注的是财政运行的安全稳健，其核心问题就在于，能否将公债作为财政支出的资金来源。"},
+{c:"第一章 财政法总论",type:"judge",stem:"财政法定主义所谓的“法”，应该仅指由人民代表所组成的最高权力机关所制定的法律。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：财政法定主义所谓的“法”，应该仅指由人民代表所组成的最高权力机关所制定的法律。"},
+{c:"第一章 财政法总论",type:"judge",stem:"财政法的功能应当从绝对服务于财政职能，转向对财政权力施加控制。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：总体来说，财政法的功能应当从绝对服务于财政职能，转向对财政权力施加控制。具体表现在财政权力授予功能、规范功能、监督功能三方面。"},
+{c:"第一章 财政法总论",type:"single",stem:"财政民主主义在现代社会又被称为？",
+ opts:["财政议会主义","财政法定主义","财政平等主义","财政健全主义"],ans:0,
+ exp:"课件原文：由于人民行使权力的机构大多是由人民代表所组成的议会，因此，财政民主主义又被称之为财政议会主义。"},
+
+/* ---------- 第二章 财政收入法 ---------- */
+{c:"第二章 财政收入法",type:"single",stem:"下列属于规费的是？",
+ opts:["政府性基金","行政规费、司法规费、使用规费、特许规费","彩票公益金","国有资产收益"],
+ ans:1,exp:"课件指出：规费包括行政规费、司法规费、使用规费、特许规费。"},
+{c:"第二章 财政收入法",type:"single",stem:"我国政府性基金相当于德国法上的？",
+ opts:["规费","受益费","特别公课","目的税"],ans:2,
+ exp:"课件原文：我国政府性基金相当于德国法上的“特别公课”，是政府基于特定的政策目的，或为弥补财政收入的不足，针对特定或不特定人征收，并设定特定用途的一种费用。"},
+{c:"第二章 财政收入法",type:"single",stem:"关于国债余额管理，下列说法正确的是？",
+ opts:["立法机关具体限定中央政府当年国债发行额度","通过限定一个年末不得突破的额度来管理国债规模","国债余额管理自1981年恢复发行国债时即已实行","国债余额管理不利于财政与货币政策协调配合"],
+ ans:1,exp:"课件原文：国债余额管理是指立法机关不具体限定中央政府当年国债发行额度，而是通过限定一个年末不得突破的额度，以达到科学管理国债规模的目的。2006年起我国采取国债余额管理方式。"},
+{c:"第二章 财政收入法",type:"single",stem:"《预算法》2014年修改后，地方政府举借债务的规定是？",
+ opts:["地方政府可自主决定举债规模","举借债务只能用于经常性支出","举借债务应当有偿还计划和稳定的偿还资金来源，只能用于公益性资本支出","地方政府可为任何单位提供债务担保"],
+ ans:2,exp:"课件引《预算法》第35条：举借的债务应当有偿还计划和稳定的偿还资金来源，只能用于公益性资本支出，不得用于经常性支出。"},
+{c:"第二章 财政收入法",type:"single",stem:"彩票公益金比例最低不得低于？",
+ opts:["10%","15%","20%","35%"],ans:2,
+ exp:"课件引财政部通知：彩票公益金比例最低不得低于20%。"},
+{c:"第二章 财政收入法",type:"judge",stem:"彩票的原初功能和主要功能是“娱乐”，“收入筹集”是特定条件下政府对彩票功能的“外力附加”。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：彩票的原初功能和主要功能是“娱乐”，“收入筹集”是在特定环境条件下国家（地区）政府对彩票功能的“外力附加”。"},
+{c:"第二章 财政收入法",type:"judge",stem:"税和费都有独立存在的价值，不宜过于偏颇地一味强调“费改税”。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：税有税的特点，费有费的长处，二者适用于不同的情形，相得益彰……不宜过于偏颇地一味强调“费改税”。"},
+
+/* ---------- 第三章 财政支出法 ---------- */
+{c:"第三章 财政支出法",type:"single",stem:"下列关于财政支出的定义，正确的是？",
+ opts:["财政主体为实现公共目的将财政资金转移给特定第三人的法律行为","政府系统内部的资金转移","政府对国有企业的所有拨款","上级政府对下级政府的纵向转移支付"],
+ ans:0,exp:"课件定义：财政支出是财政主体为实现公共目的将财政资金转移给特定第三人的法律行为。政府系统内部的资金转移、上下级政府间的纵向转移支付都不是财政支出。"},
+{c:"第三章 财政支出法",type:"single",stem:"财政拨款的特点是？",
+ opts:["等价交换","还本付息","政府向财政相对人无偿提供资金","承担投资风险并享受投资利润"],
+ ans:2,exp:"课件指出：财政拨款是政府向财政相对人无偿提供资金的行为，总体上仍遵循无对价的原则，是一种典型的授益行政。"},
+{c:"第三章 财政支出法",type:"single",stem:"政府采购必须遵守的原则不包括？",
+ opts:["公开透明原则","公平竞争原则","公正原则","效率优先原则"],
+ ans:3,exp:"课件引《政府采购法》第3条：政府采购必须遵守公开透明原则、公平竞争原则、公正原则、诚实信用原则。"},
+{c:"第三章 财政支出法",type:"judge",stem:"一项具体的财政开支即便得到了立法机关的预算授权，如果不符合支出基准的要求，也不得进行实际开支。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：一项具体的财政开支即便得到了立法机关的预算授权，如果不符合支出基准的要求，也不得进行实际开支。"},
+{c:"第三章 财政支出法",type:"judge",stem:"我国长期实行代理国库制，中国人民银行是财政部门的代理人。",
+ opts:["正确","错误"],ans:1,exp:"课件明确指出：我国长期实行经理国库制，而不是代理国库制。中国人民银行是法定的国库经理单位，它不是财政部门的代理人。"},
+
+/* ---------- 第四章 预算法 ---------- */
+{c:"第四章 预算法",type:"single",stem:"我国预算法的立法宗旨是？",
+ opts:["规范政府收支行为，强化预算约束，加强对预算的管理和监督，建立健全全面规范、公开透明的预算制度，保障经济社会的健康发展","实现年度财政收支平衡","扩大政府财政收入规模","加强中央对地方的控制"],
+ ans:0,exp:"课件引《预算法》第1条，即立法宗旨。"},
+{c:"第四章 预算法",type:"single",stem:"下列关于预算完整性原则的表述，正确的是？",
+ opts:["允许在预算规定范围外还有以政府为主体的资金收支活动","政府的全部收入和支出都应当纳入预算","只将税收收入纳入预算即可","政府性基金可以不纳入预算"],
+ ans:1,exp:"课件指出：预算完整性原则要求对一切以政府为主体的资金收支活动都要在预算中予以全面反映和管理。《预算法》第4条第2款规定“政府的全部收入和支出都应当纳入预算”。"},
+{c:"第四章 预算法",type:"single",stem:"我国预算法确立的复式预算体系包括？",
+ opts:["一般公共预算、政府性基金预算、国有资本经营预算、社会保险基金预算","中央预算和地方预算","收入预算和支出预算","经常预算和资本预算"],
+ ans:0,exp:"课件引《预算法》第5条：预算包括一般公共预算、政府性基金预算、国有资本经营预算、社会保险基金预算。"},
+{c:"第四章 预算法",type:"single",stem:"各级一般公共预算应当按照本级一般公共预算支出额的多少设置预备费？",
+ opts:["1%—3%","3%—5%","5%—8%","1%—5%"],ans:0,
+ exp:"课件引《预算法》第40条：各级一般公共预算应当按照本级一般公共预算支出额的百分之一至百分之三设置预备费。"},
+{c:"第四章 预算法",type:"single",stem:"中央预算的调整方案应当由谁审查和批准？",
+ opts:["全国人民代表大会","全国人民代表大会常务委员会","国务院","财政部"],
+ ans:1,exp:"课件引《预算法》：中央预算的调整方案应当提请全国人民代表大会常务委员会审查和批准。"},
+{c:"第四章 预算法",type:"judge",stem:"我国预算年度采用跨年制，自当年4月1日起至次年3月31日止。",
+ opts:["正确","错误"],ans:1,exp:"课件明确指出：我国预算年度汞历年制，自公历1月1日起，至12月31日止。"},
+{c:"第四章 预算法",type:"judge",stem:"各级政府应当建立跨年度预算平衡机制。",
+ opts:["正确","错误"],ans:0,exp:"课件引《预算法》第12条第2款：“各级政府应当建立跨年度预算平衡机制。”"},
+
+/* ---------- 第五章 政府间财政关系法 ---------- */
+{c:"第五章 政府间财政关系法",type:"single",stem:"第一代财政分权理论的代表人物不包括？",
+ opts:["蒂博特","奥茨","马斯格雷夫","钱颖一"],ans:3,
+ exp:"课件指出：蒂博特、奥茨和马斯格雷夫是第一代财政联邦主义的代表人物（TOM模型）；钱颖一等是第二代代表人物。"},
+{c:"第五章 政府间财政关系法",type:"single",stem:"“以足投票”理论由谁提出？",
+ opts:["蒂博特","奥茨","马斯格雷夫","钱颖一"],ans:0,
+ exp:"课件指出：蒂博特在1956年的《地方支出的纯理论》一文中提出了“以足投票”。"},
+{c:"第五章 政府间财政关系法",type:"single",stem:"我国财政体制改革应当选择的路径是？",
+ opts:["集权型、对称型、行政式","均权型、非对称型、法治化","分权型、对称型、行政式","均权型、对称型、行政式"],
+ ans:1,exp:"课件原文：我国的财政体制改革应当选择均权型、非对称型的路径，并由行政式分权模式向法治化分权模式转型。"},
+{c:"第五章 政府间财政关系法",type:"single",stem:"财政转移支付制度最为主要的价值追求是？",
+ opts:["效率","均等化","宏观调控","收入最大化"],ans:1,
+ exp:"课件原文：均等化是财政转移支付制度最为主要的价值追求。"},
+{c:"第五章 政府间财政关系法",type:"single",stem:"关于专项转移支付，下列说法正确的是？",
+ opts:["市场竞争机制能够有效调节的事项不得设立专项转移支付","专项转移支付不需要定期评估","上级政府安排专项转移支付时必须要求下级政府承担配套资金","专项转移支付可以用于楼堂馆所建设"],
+ ans:0,exp:"课件引《预算法》第16条：市场竞争机制能够有效调节的事项不得设立专项转移支付；应建立健全专项转移支付定期评估和退出机制；上级政府在安排专项转移支付时，不得要求下级政府承担配套资金（国务院规定应共同承担的事项除外）。"},
+{c:"第五章 政府间财政关系法",type:"judge",stem:"1994年分税制改革的直接动因之一是“分灶吃饭”体制下中央财政收入逐渐下降，中央财力过少。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：“分灶吃饭”体制下中央财政收入逐渐下降……导致了中央政权的虚弱……这也成了1994年分税制改革的直接动因。"},
+{c:"第五章 政府间财政关系法",type:"judge",stem:"财政分权理论与国家结构形式上的单一制、联邦制有必然联系。",
+ opts:["正确","错误"],ans:1,exp:"课件明确指出：财政分权理论……与国家结构形式上的单一制、联邦制没有必然的联系。"},
+
+/* ---------- 第六章 税法总论 ---------- */
+{c:"第六章 税法总论",type:"single",stem:"下列不属于税法特征的是？",
+ opts:["税法结构的规范性","实体性规范和程序性规范的统一性","税法规范的技术性","税法的单一性"],
+ ans:3,exp:"课件将税法特征归纳为：结构规范性、实体性规范和程序性规范的统一性、规范的技术性、综合性。"},
+{c:"第六章 税法总论",type:"single",stem:"税收法定原则的内容一般不包括？",
+ opts:["税收要素法定原则","税收要素明确原则","稽征合法原则","税收中性原则"],ans:3,
+ exp:"课件指出：税收法定原则一般由税收要素法定原则、税收要素明确原则、稽征合法原则三项具体原则组成。"},
+{c:"第六章 税法总论",type:"single",stem:"税收公平原则中，负担能力说的代表人物是？",
+ opts:["亚当·斯密","瓦格纳","穆勒和庇古","马斯格雷夫"],ans:2,
+ exp:"课件指出：负担能力说的代表人物是穆勒和庇古，他们引入相对牺牲的概念，认为凡具有相同纳税能力者应负担相同的税收，不同纳税能力者应负担不同的税收。"},
+{c:"第六章 税法总论",type:"single",stem:"税收效率原则包括？",
+ opts:["税收行政效率和税收经济效率","税收公平和税收中性","税收法定和税收效率","税收社会政策和税收公平"],
+ ans:0,exp:"课件指出：税收效率原则包括税收行政效率和税收经济效率两个方面。"},
+{c:"第六章 税法总论",type:"single",stem:"税收法律关系性质争论中，主张税收法律关系在性质上属于一种公法的债权债务关系的是？",
+ opts:["奥托·梅耶","阿尔伯特·亨泽尔","奥特马·布勒","金子宏"],ans:1,
+ exp:"课件指出：阿尔伯特·亨泽尔于1924年出版的《税法》一书，明确主张税收法律关系在性质上属于一种公法的债权债务关系。"},
+{c:"第六章 税法总论",type:"single",stem:"我国税法上的纳税主体包括？",
+ opts:["仅纳税人","纳税人和扣缴义务人","仅扣缴义务人","纳税人和征税机关"],ans:1,
+ exp:"课件指出：我国税法上的纳税主体包括两类：纳税人和扣缴义务人。"},
+{c:"第六章 税法总论",type:"single",stem:"税法适用原则中，“实体从旧、程序从新”原则的含义是？",
+ opts:["实体法一律适用新法，程序法一律适用旧法","税收实体法适用行为发生时的税法规定，征管程序上一律适用新法","实体法和程序法都适用旧法","实体法和程序法都适用新法"],
+ ans:1,exp:"课件指出：实体从旧、程序从新原则包括两个方面：税收实体法适用行为发生当时的税法规定；税务机关在适用征税程序或履行税收债务时，征管程序上一律适用新法。"},
+{c:"第六章 税法总论",type:"judge",stem:"实质课税原则有利于弥补税收法定原则的形式主义缺陷，防范其给量能课税原则造成损害。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：实质课税原则有利于弥补税收法定原则的形式主义缺陷，防范其给量能课税原则造成损害，以利于税法公平的实现。"},
+{c:"第六章 税法总论",type:"judge",stem:"在税法解释领域，存在“有利于国库推定”和“有利于纳税人推定”的原理。",
+ opts:["正确","错误"],ans:1,exp:"课件明确指出：在税法解释领域，“有利于国库推定”和“有利于纳税人推定”的原理都不存在，税法解释在于明确税法的内容。"},
+{c:"第六章 税法总论",type:"judge",stem:"纳税人依法享有申请延期缴纳税款的权利，经批准可以延期缴纳税款，但最长不得超过三个月。",
+ opts:["正确","错误"],ans:0,exp:"课件在纳税人权利部分指出：如因有特殊困难，不能按期缴纳税款的，经省、自治区、直辖市国家税务局、地方税务局批准，可以延期缴纳税款，但是最长不得超过三个月。"},
+
+/* ---------- 第七章 商品税法 ---------- */
+{c:"第七章 商品税法",type:"single",stem:"从本质上讲，增值税是一种？",
+ opts:["所得税","消费税","财产税","行为税"],ans:1,
+ exp:"课件原文：从本质上讲，增值税是一种消费税，是对商品与服务的消费课税，由最终的消费者承担，是对个人消费课征的间接税。"},
+{c:"第七章 商品税法",type:"single",stem:"增值税一般计税方法的计算公式是？",
+ opts:["应纳税额 = 销售额 × 征收率","应纳税额 = 当期销项税额 - 当期进项税额","应纳税额 = 销售数量 × 定额税率","应纳税额 = 销售额 × 比例税率 + 销售数量 × 定额税率"],
+ ans:1,exp:"课件指出：一般计算公式为应纳税额 = 当期销项税额 - 当期进项税额；简易计算公式为应纳税额 = 销售额 × 征收率。"},
+{c:"第七章 商品税法",type:"single",stem:"中国目前增值税的一般税率是？",
+ opts:["13%","17%","11%","6%"],ans:1,
+ exp:"课件指出：中国目前增值税税率与征收率包括一般税率17%；低税率11%、6%；零税率0%；征收率3%、5%（2%、1.5%）。"},
+{c:"第七章 商品税法",type:"single",stem:"消费税应纳税额的计算方法不包括？",
+ opts:["从价定率法","从量定额法","复合计税法","超额累进法"],ans:3,
+ exp:"课件指出：消费税应纳税额的计算方法包括从价定率法、从量定额法和复合计税法三种。"},
+{c:"第七章 商品税法",type:"single",stem:"烟叶税实行的比例税率是？",
+ opts:["10%","15%","20%","25%"],ans:2,
+ exp:"课件指出：烟叶税实行比例税率，税率为20%。"},
+{c:"第七章 商品税法",type:"single",stem:"关税作为商品税类中具有纯粹涉外性的一个独立税种，其最重要的特征是？",
+ opts:["课税环节为进出口环节","由税务机关征收","计税依据为含税价格","征税对象为国内货物"],
+ ans:0,exp:"课件指出：课税环节为进出口环节，由此决定关税具有纯粹的涉外性。这是关税（法）最重要的特征。"},
+{c:"第七章 商品税法",type:"judge",stem:"我国进口关税共设置了最惠国税率、协定税率、特惠税率、普通税率、关税配额税率、暂定税率和报复性关税税率等7种税率。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：我国进口关税共设置了最惠国税率、协定税率、特惠税率、普通税率、关税配额税率、暂定税率和报复性关税税率等7种税率。"},
+{c:"第七章 商品税法",type:"judge",stem:"船舶吨税具有船坞使用费的性质。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：船舶吨税具有船坞使用费的性质。国家课征船舶吨税的权力依据在于应税船舶进一国港口时会使用该国的港口设施和助航设备。"},
+
+/* ---------- 第八章 所得税法 ---------- */
+{c:"第八章 所得税法",type:"single",stem:"企业所得税的纳税人分为？",
+ opts:["居民企业和非居民企业","内资企业和外资企业","国有企业和民营企业","法人和非法人"],
+ ans:0,exp:"课件指出：企业所得税的纳税人分为居民企业和非居民企业。居民企业，是指依法在中国境内成立，或者依照外国（地区）法律成立但实际管理机构在中国境内的企业。"},
+{c:"第八章 所得税法",type:"single",stem:"企业所得税的税率，除法律和法规另有规定外，为？",
+ opts:["20%","25%","15%","10%"],ans:1,
+ exp:"课件指出：除法律和法规另有规定以外，企业所得税的税率为25%。"},
+{c:"第八章 所得税法",type:"single",stem:"非居民企业在中国境内未设立机构、场所的，或者虽设立机构、场所但取得的所得与其所设机构、场所没有实际联系的，其来源于中国境内的所得，适用税率为？",
+ opts:["25%","20%","15%","10%"],ans:3,
+ exp:"课件指出：非居民企业在中国境内未设立机构、场所的，或者虽设立机构、场所但取得的所得与其所设机构、场所没有实际联系的，其来源于中国境内的所得，适用税率为10%。"},
+{c:"第八章 所得税法",type:"single",stem:"企业发生的公益性捐赠支出，在年度利润总额多少以内的部分，准予在计算应纳税所得额时扣除？",
+ opts:["12%","15%","10%","5%"],ans:0,
+ exp:"课件指出：企业发生的公益性捐赠支出，在年度利润总额12%以内的部分，准予在计算应纳税所得额时扣除。"},
+{c:"第八章 所得税法",type:"single",stem:"企业纳税年度发生的亏损，准予向以后年度结转，用以后年度的所得弥补，但结转年限最长不得超过？",
+ opts:["3年","5年","8年","10年"],ans:1,
+ exp:"课件指出：企业纳税年度发生的亏损，准予向以后年度结转，用以后年度的所得弥补，但结转年限最长不得超过5年。"},
+{c:"第八章 所得税法",type:"single",stem:"国家需要重点扶持的高新技术企业，减按多少的税率征收企业所得税？",
+ opts:["20%","15%","10%","25%"],ans:1,
+ exp:"课件指出：国家需要重点扶持的高新技术企业，减按15%的税率征收企业所得税。"},
+{c:"第八章 所得税法",type:"judge",stem:"企业应纳税所得额的计算，以权责发生制为原则。",
+ opts:["正确","错误"],ans:0,exp:"课件原文：企业应纳税所得额的计算，以权责发生制为原则，属于当期的收入和费用，不论款项是否收付，均作为当期的收入和费用。"},
+{c:"第八章 所得税法",type:"judge",stem:"企业所得税的纳税人是企业和其他取得收入的组织，包括个人独资企业和合伙企业。",
+ opts:["正确","错误"],ans:1,exp:"课件明确指出：企业所得税的纳税人是企业和其他取得收入的组织（以下统称企业），不包括个人独资企业和合伙企业。"}
+];
+
+/* ============ 逻辑 ============ */
+const quizEl=document.getElementById('quiz');
+const tocEl=document.getElementById('toc');
+const state={answered:{},wrong:[]};
+const letters=['A','B','C','D'];
+
+/* 分组 */
+const groups=[];
+QUESTIONS.forEach((q,i)=>{
+  let g=groups.find(x=>x.name===q.c);
+  if(!g){g={name:q.c,items:[]};groups.push(g);}
+  g.items.push(i);
+});
+
+/* 渲染目录 */
+groups.forEach(g=>{
+  const li=document.createElement('li');
+  const a=document.createElement('a');
+  a.textContent=g.name;
+  a.dataset.target='g-'+g.name.replace(/\s/g,'_');
+  const cnt=document.createElement('span');
+  cnt.className='cnt';cnt.textContent=g.items.length+'题';
+  a.appendChild(cnt);
+  a.onclick=()=>{
+    document.getElementById(a.dataset.target).scrollIntoView({behavior:'smooth',block:'start'});
+  };
+  li.appendChild(a);tocEl.appendChild(li);
+});
+
+/* 渲染题目 */
+let idx=0;
+groups.forEach(g=>{
+  const h=document.createElement('div');
+  h.id='g-'+g.name.replace(/\s/g,'_');
+  h.style.cssText='font-size:18px;font-weight:700;color:var(--accent);margin:26px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--accent-soft);scroll-margin-top:14px';
+  h.textContent=g.name;
+  quizEl.appendChild(h);
+  g.items.forEach(i=>{
+    const q=QUESTIONS[i];
+    const card=document.createElement('div');
+    card.className='q';card.id='q-'+i;card.dataset.idx=i;
+    card.dataset.search=(q.stem+' '+q.opts.join(' ')+' '+q.exp+' '+q.c).toLowerCase();
+    const meta=document.createElement('div');
+    meta.className='meta';
+    meta.innerHTML=`<span>第 ${i+1} 题 · ${q.type==='single'?'单选题':'判断题'}</span><span class="tag">${q.c}</span>`;
+    const stem=document.createElement('div');
+    stem.className='stem';stem.textContent=q.stem;
+    const opts=document.createElement('div');
+    opts.className='opts';
+    q.opts.forEach((o,oi)=>{
+      const d=document.createElement('div');
+      d.className='opt';
+      d.innerHTML=`<span class="k">${q.type==='single'?letters[oi]:'○'}</span><span>${o}</span>`;
+      d.onclick=()=>answer(i,oi,card);
+      opts.appendChild(d);
+    });
+    const ex=document.createElement('div');
+    ex.className='explain';
+    ex.innerHTML='<div class="res"></div><div class="txt"></div>';
+    card.append(meta,stem,opts,ex);
+    quizEl.appendChild(card);
+  });
+});
+
+function answer(i,choice,card){
+  if(state.answered[i]!==undefined)return;
+  const q=QUESTIONS[i];
+  const opts=card.querySelectorAll('.opt');
+  opts.forEach(o=>o.classList.add('disabled'));
+  const correct=q.ans===choice;
+  state.answered[i]=choice;
+  opts[q.ans].classList.add('correct');
+  if(!correct){
+    opts[choice].classList.add('wrong');
+    if(!state.wrong.includes(i))state.wrong.push(i);
+  }
+  const ex=card.querySelector('.explain');
+  ex.classList.add('show');
+  const res=ex.querySelector('.res');
+  res.textContent=correct?'✓ 回答正确':'✗ 回答错误，正确答案：'+(q.type==='single'?letters[q.ans]:q.opts[q.ans]);
+  res.className='res '+(correct?'ok':'bad');
+  ex.querySelector('.txt').textContent='解析：'+q.exp;
+  updateStats();
+  renderWrong();
+}
+
+function updateStats(){
+  const done=Object.keys(state.answered).length;
+  let ok=0;state.wrong.forEach(()=>{});
+  Object.entries(state.answered).forEach(([i,c])=>{
+    if(QUESTIONS[i].ans===c)ok++;
+  });
+  const bad=done-ok;
+  document.getElementById('doneN').textContent=done;
+  document.getElementById('okN').textContent=ok;
+  document.getElementById('badN').textContent=bad;
+  document.getElementById('rate').textContent=done?Math.round(ok/done*100)+'%':'—';
+  document.getElementById('progressBar').style.width=(done/QUESTIONS.length*100)+'%';
+}
+
+function renderWrong(){
+  const panel=document.getElementById('wrongPanel');
+  const list=document.getElementById('wrongList');
+  if(!state.wrong.length){list.innerHTML='<div class="empty">暂无错题，继续加油！</div>';return;}
+  list.innerHTML='<ul>'+state.wrong.map(i=>{
+    return `<li><span class="jump" onclick="jump(${i})">第${i+1}题</span>　${QUESTIONS[i].stem}</li>`;
+  }).join('')+'</ul>';
+}
+function jump(i){
+  document.getElementById('q-'+i).scrollIntoView({behavior:'smooth',block:'center'});
+  const el=document.getElementById('q-'+i);
+  el.style.outline='2px solid var(--warn)';
+  setTimeout(()=>el.style.outline='',1600);
+}
+
+/* 按钮 */
+document.getElementById('wrongBtn').onclick=()=>{
+  const p=document.getElementById('wrongPanel');
+  p.style.display=p.style.display==='block'?'none':'block';
+  renderWrong();
+};
+document.getElementById('submitBtn').onclick=()=>{
+  const done=Object.keys(state.answered).length;
+  let ok=0;Object.entries(state.answered).forEach(([i,c])=>{if(QUESTIONS[i].ans===c)ok++;});
+  const score=done?Math.round(ok/done*100):0;
+  document.getElementById('finalScore').textContent=score+'分';
+  document.getElementById('finalDesc').textContent=`共 ${QUESTIONS.length} 题，已答 ${done} 题，正确 ${ok} 题，错误 ${done-ok} 题。`;
+  document.getElementById('resultMask').classList.add('show');
+};
+document.getElementById('resetBtn').onclick=()=>{
+  if(!confirm('确定要重做全部题目吗？'))return;
+  state.answered={};state.wrong=[];
+  document.querySelectorAll('.q').forEach(card=>{
+    card.querySelectorAll('.opt').forEach(o=>o.className='opt');
+    card.querySelector('.explain').classList.remove('show');
+  });
+  updateStats();renderWrong();
+};
+document.getElementById('themeBtn').onclick=function(){
+  const html=document.documentElement;
+  const dark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',dark?'light':'dark');
+  this.textContent=dark?'🌙 深色':'☀️ 浅色';
+};
+/* 搜索 */
+document.getElementById('search').oninput=function(){
+  const kw=this.value.trim().toLowerCase();
+  document.querySelectorAll('.q').forEach(card=>{
+    card.style.display=!kw||card.dataset.search.includes(kw)?'':'none';
+  });
+  document.querySelectorAll('#quiz > div[id^="g-"]').forEach(h=>{
+    let sib=h.nextElementSibling,any=false;
+    while(sib&&sib.classList&&sib.classList.contains('q')){
+      if(sib.style.display!=='none')any=true;
+      sib=sib.nextElementSibling;
+    }
+    h.style.display=any?'':'none';
+  });
+};
+/* 回到顶部 */
+window.onscroll=()=>{document.getElementById('top').style.display=window.scrollY>400?'block':'none';};
+document.getElementById('top').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
+
+updateStats();renderWrong();
+</script>
+</body>
+</html>
